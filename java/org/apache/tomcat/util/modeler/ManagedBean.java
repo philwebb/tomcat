@@ -24,6 +24,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 import javax.management.AttributeNotFoundException;
 import javax.management.DynamicMBean;
@@ -573,5 +574,11 @@ public class ManagedBean implements java.io.Serializable {
         key.append(')');
 
         return key.toString().intern();
+    }
+
+    public static ManagedBean build(Consumer<ManagedBeanBuilder> managedBean) {
+        ManagedBean built = new ManagedBean();
+        managedBean.accept(new ManagedBeanBuilder(built));
+        return built;
     }
 }

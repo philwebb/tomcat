@@ -22,9 +22,12 @@ import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Consumer;
 
 import javax.management.DynamicMBean;
 import javax.management.MBeanAttributeInfo;
@@ -109,12 +112,24 @@ public class Registry implements RegistryMBean, MBeanRegistration {
     // map to avoid duplicated searching or loading descriptors
     private Map<String, URL> searchedPaths = new HashMap<>();
 
+    // set to avoid duplicated loading for registrars
+    private Set<Class<?>> loadedRegistrars = new HashSet<>();
+
     private Object guard;
 
     // Id - small ints to use array access. No reset on stop()
     // Used for notifications
     private final Hashtable<String, Hashtable<String, Integer>> idDomains = new Hashtable<>();
     private final Hashtable<String, int[]> ids = new Hashtable<>();
+
+    private final ManagedBeanRegistry managedBeanRegistry = new ManagedBeanRegistry() {
+
+        @Override
+        public void add(Consumer<ManagedBeanBuilder> managedBean) {
+            addManagedBean(ManagedBean.build(managedBean));
+        }
+
+    };
 
 
     // ----------------------------------------------------------- Constructors
@@ -186,6 +201,7 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         descriptorsByClass = new HashMap<>();
         descriptors = new HashMap<>();
         searchedPaths = new HashMap<>();
+        loadedRegistrars = new HashSet<>();
     }
 
 
@@ -652,15 +668,22 @@ public class Registry implements RegistryMBean, MBeanRegistration {
      * @param classLoader The class loader
      */
     public void loadDescriptors(String packageName, ClassLoader classLoader) {
-        String res = packageName.replace('.', '/');
-
         if (log.isTraceEnabled()) {
-            log.trace("Finding descriptor " + res);
+            log.trace("Finding descriptor in package " + packageName);
+        }
+        try {
+            String className = packageName + ".MBeansDescriptors";
+            Class<?> registrarClass = Class.forName(className, false, classLoader);
+            loadDescriptors(registrarClass);
+            return;
+        } catch (ClassNotFoundException ex) {
+            // Ignore and continue with XML based loading
         }
 
         if (searchedPaths.get(packageName) != null) {
             return;
         }
+        String res = packageName.replace('.', '/');
 
         String descriptors = res + "/mbeans-descriptors.xml";
         URL dURL = classLoader.getResource(descriptors);
@@ -678,6 +701,22 @@ public class Registry implements RegistryMBean, MBeanRegistration {
         }
     }
 
+    private void loadDescriptors(Class<?> registrarClass) {
+        if (loadedRegistrars.add(registrarClass)) {
+            try {
+                Object registrar = registrarClass.newInstance();
+                if (!(registrar instanceof ManagedBeanRegistrar)) {
+                    throw new IllegalStateException(
+                            "Registrat class " + registrarClass +
+                            " does not implement ManagedBeanRegistrar");
+                }
+                ((ManagedBeanRegistrar) registrar).registerManagedBeans(managedBeanRegistry);
+            } catch (InstantiationException | IllegalAccessException ex) {
+                throw new IllegalStateException("Unable to create instance of registrar " +
+                        registrarClass, ex);
+            }
+        }
+    }
 
     /**
      * Lookup the component descriptor in the package and in the parent

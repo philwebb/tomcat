@@ -17,6 +17,8 @@
 
 package org.apache.tomcat.util.modeler;
 
+import java.util.function.Consumer;
+
 import javax.management.MBeanAttributeInfo;
 
 
@@ -160,5 +162,9 @@ public class AttributeInfo extends FeatureInfo {
         return sb.toString();
     }
 
-
+    public static AttributeInfo build(Consumer<AttributeInfoBuilder> attributeInfo) {
+        AttributeInfo built = new AttributeInfo();
+        attributeInfo.accept(new AttributeInfoBuilder(built));
+        return built;
+    }
 }

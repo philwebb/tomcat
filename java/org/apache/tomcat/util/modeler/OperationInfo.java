@@ -20,6 +20,7 @@ import java.util.Locale;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 import javax.management.MBeanOperationInfo;
 import javax.management.MBeanParameterInfo;
@@ -168,5 +169,11 @@ public class OperationInfo extends FeatureInfo {
         for (int i = 0; i < params.length; i++)
             parameters[i] = params[i].createParameterInfo();
         return parameters;
+    }
+
+    public static OperationInfo build(Consumer<OperationInfoBuilder> operation) {
+        OperationInfo built = new OperationInfo();
+        operation.accept(new OperationInfoBuilder(built));
+        return built;
     }
 }

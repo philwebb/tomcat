@@ -19,6 +19,7 @@ package org.apache.tomcat.util.modeler;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 
 import javax.management.MBeanNotificationInfo;
 
@@ -152,5 +153,11 @@ public class NotificationInfo extends FeatureInfo {
         }
         sb.append("]");
         return sb.toString();
+    }
+
+    public static NotificationInfo build(Consumer<NotificationInfoBuilder> notificationInfo) {
+        NotificationInfo built = new NotificationInfo();
+        notificationInfo.accept(new NotificationInfoBuilder(built));
+        return built;
     }
 }

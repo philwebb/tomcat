@@ -19,6 +19,8 @@
 package org.apache.tomcat.util.modeler;
 
 
+import java.util.function.Consumer;
+
 import javax.management.MBeanParameterInfo;
 
 
@@ -53,5 +55,11 @@ public class ParameterInfo extends FeatureInfo {
                 (getName(), getType(), getDescription());
         }
         return (MBeanParameterInfo)info;
+    }
+
+    public static ParameterInfo build(Consumer<ParameterInfoBuilder> parameterInfo) {
+        ParameterInfo built = new ParameterInfo();
+        parameterInfo.accept(new ParameterInfoBuilder(built));
+        return built;
     }
 }
